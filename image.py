@@ -11,7 +11,7 @@ from keras.optimizers import RMSprop, Adam, Adadelta
 
 from rdkit import Chem
 from rdkit.Chem import Draw
-image_size = 300
+image_size = 50
 
 what = 10000
 df_train = pd.read_csv("train.csv", nrows = what)
@@ -23,7 +23,7 @@ def load_train():
     for i in range(len(df_train)):
         #print i
         smile = df_train.smiles[i]
-        pil_image = Draw.MolToImage(Chem.MolFromSmiles(smile))
+        pil_image = Draw.MolToImage(Chem.MolFromSmiles(smile), size = (image_size, image_size))
         #pil_image.show()
         open_cv_image = np.array(pil_image)
         #open_cv_image = open_cv_image[:, :, ::-1].copy() 
@@ -37,12 +37,12 @@ def read_and_normalize_train_data():
     train_data, train_target = load_train()
     train_data = np.array(train_data, dtype=np.float32)
     train_target = np.array(train_target, dtype=np.float32)
-    m = train_data.mean()
-    s = train_data.std()
+    #m = train_data.mean()
+    #s = train_data.std()
 
-    print ('Train mean, sd:', m, s )
-    train_data -= m
-    train_data /= s
+    #print ('Train mean, sd:', m, s )
+    #train_data -= m
+    #train_data /= s
     print('Train shape:', train_data.shape)
     print(train_data.shape[0], 'train samples')
     return train_data, train_target
@@ -108,19 +108,20 @@ def train_model(batch_size = what, nb_epoch = 20):
 
     model = create_model()
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, validation_data=(X_valid, y_valid) )
-
+    print X_valid
     return model
 
 model = train_model()
-
-df_test = pd.read_csv("test.csv")
+df_train = []
+df_test = pd.read_csv("test.csv", nrows = 1000)
 
 X_test = []
 
 for i in range(len(df_test)):
-        #print i
+        if (i % 100 == 0):
+		print i
         smile = df_test.smiles[i]
-        pil_image = Draw.MolToImage(Chem.MolFromSmiles(smile))
+        pil_image = Draw.MolToImage(Chem.MolFromSmiles(smile), size = (image_size, image_size))
         #pil_image.show()
         open_cv_image = np.array(pil_image)
         #open_cv_image = open_cv_image[:, :, ::-1].copy() 
@@ -128,7 +129,14 @@ for i in range(len(df_test)):
         #img = img.transpose((2,0,1))
         X_test.append(open_cv_image)
 
-predictions = model.predict(X_test)
+X_test = np.array(X_test, dtype=np.float32)
+#m = X_test.mean()
+#s = X_test.std()
+#X_test -= m
+#X_test /= s
+#cv_size = 0
+#print X_test
+predictions = model.predict(X_test, batch_size =1000, verbose =1)
 
 def write_to_file(filename, predictions):
     with open(filename, "w") as f:
