@@ -13,7 +13,8 @@ from rdkit import Chem
 from rdkit.Chem import Draw
 image_size = 300
 
-df_train = pd.read_csv("train.csv", nrows = 50)
+what = 10000
+df_train = pd.read_csv("train.csv", nrows = what)
 
 def load_train():
     X_train = []
@@ -95,9 +96,9 @@ def create_model():
     model.compile(loss='mean_squared_error', optimizer=Adadelta())
     return model
 
-def train_model(batch_size = 50, nb_epoch = 20):
-    num_samples = 50
-    cv_size = 10
+def train_model(batch_size = what, nb_epoch = 20):
+    num_samples = what
+    cv_size = 2*what/10
 
     train_data, train_target = read_and_normalize_train_data()
     train_data = train_data[0:num_samples,:,:,:]
@@ -108,11 +109,31 @@ def train_model(batch_size = 50, nb_epoch = 20):
     model = create_model()
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, validation_data=(X_valid, y_valid) )
 
-    predictions_valid = model.predict(X_valid, batch_size=50, verbose=1)
-    compare = pd.DataFrame(data={'original':y_valid.reshape((cv_size,)),
-             'prediction':predictions_valid.reshape((cv_size,))})
-    compare.to_csv('compare.csv')
-
     return model
 
-train_model(nb_epoch = 50)
+model = train_model()
+
+df_test = pd.read_csv("test.csv")
+
+X_test = []
+
+for i in range(len(df_test)):
+        #print i
+        smile = df_test.smiles[i]
+        pil_image = Draw.MolToImage(Chem.MolFromSmiles(smile))
+        #pil_image.show()
+        open_cv_image = np.array(pil_image)
+        #open_cv_image = open_cv_image[:, :, ::-1].copy() 
+        #img = cv2.resize(open_cv_image,(image_size, image_size)).astype(np.float32)
+        #img = img.transpose((2,0,1))
+        X_test.append(open_cv_image)
+
+predictions = model.predict(X_test)
+
+def write_to_file(filename, predictions):
+    with open(filename, "w") as f:
+        f.write("Id,Prediction\n")
+        for i,p in enumerate(predictions):
+            f.write(str(i+1) + "," + str(p) + "\n")
+
+write_to_file("hello.csv", predictions)
